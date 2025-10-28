@@ -1,0 +1,241 @@
+<!DOCTYPE html>
+<html lang="zh-TW">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>旅遊分享器方案生成器</title>
+  <style>
+    body { font-family: Arial, sans-serif; padding: 20px; max-width: 600px; margin: auto; }
+    input, select { margin: 5px 0; padding: 5px; width: 100%; }
+    button { margin: 10px 0; padding: 10px 20px; cursor: pointer; }
+    #plansOutput, #modifyResultOutput { white-space: pre-wrap; background: #f2f2f2; padding: 10px; border-radius: 5px; margin-top: 10px; }
+    h3 { margin-top: 30px; }
+    .hidden { display: none; }
+  </style>
+</head>
+<body>
+  <h2>旅遊分享器方案生成器</h2>
+
+  <label>選擇或輸入國家：</label>
+  <input list="countries" id="countryInput" placeholder="例如：日本">
+  <datalist id="countries">
+    <option value="日本">
+    <option value="韓國">
+    <option value="中國">
+    <option value="泰國">
+    <option value="越南">
+    <option value="台灣">
+    <option value="美國">
+  </datalist>
+
+  <label>輸入優惠代碼（可留空使用預設 85GO）：</label>
+  <input type="text" id="customCodeInput" placeholder="例如：TAG60" value="85GO">
+
+  <label>折扣百分比（如 85 = 85折，預設 85）：</label>
+  <input type="number" id="discountInput" value="85">
+
+  <label>分享器原價調整（若固定則無法修改）：</label>
+  <input type="number" id="customPriceInput" placeholder="輸入新的原價，單位元/天">
+
+  <button id="copyBtn">一鍵複製方案</button>
+
+  <div id="plansOutput"></div>
+
+  <h3>國家方案查詢與修改</h3>
+  <label>選擇國家：</label>
+  <select id="modifyCountryInput"></select>
+
+  <div id="countryPlansDisplay">
+    <label>分享器原價：</label>
+    <input id="modifySharePriceInput" type="number">
+    <label>分享器連結：</label>
+    <input id="modifyShareLinkInput">
+    <div id="esimDiv" class="hidden">
+      <label>是否有實體 SIM 卡：</label>
+      <select id="hasPhysicalSIMInput">
+        <option value="yes">有</option>
+        <option value="no">無</option>
+      </select>
+      <label>eSIM 連結（輸入網址表示有eSIM）：</label>
+      <input id="modifyEsimLinkInput">
+    </div>
+    <button id="saveModifyBtn">儲存修改</button>
+    <div id="modifyResultOutput"></div>
+  </div>
+
+  <h3>新增未在選項的國家方案</h3>
+  <label>國家名稱：</label>
+  <input id="newCountryInput" placeholder="例如：菲律賓">
+  <label>分享器原價：</label>
+  <input type="number" id="newSharePriceInput" placeholder="例如：200">
+  <label>分享器連結：</label>
+  <input id="newShareLinkInput" placeholder="例如：https://example.com/share">
+  <label>是否有實體 SIM 卡：</label>
+  <select id="newHasPhysicalSIMInput">
+    <option value="yes">有</option>
+    <option value="no">無</option>
+  </select>
+  <label>eSIM 連結（輸入網址表示有eSIM）：</label>
+  <input id="newEsimLinkInput" placeholder="例如：https://example.com/esim">
+  <button id="addNewCountryBtn">新增國家方案</button>
+
+  <script>
+    const fixedPlans = ["日本", "韓國", "泰國", "越南", "台灣"];
+
+    const plansData = {
+      "日本": [
+        { type: "分享器", originalPrice: 190, discountCode: "TAG60", link: "bit.ly/2LNwLOk", suggestion: "1-3台連線使用(最多5台)" },
+        { type: "eSIM/實體SIM卡", discountCode: "85GO", link: "reurl.cc/nvZ612" }
+      ],
+      "韓國": [
+        { type: "分享器", originalPrice: 190, discountCode: "TAG60", link: "bit.ly/2E92zM2", suggestion: "1-3台連線使用(最多5台)" },
+        { type: "eSIM/實體SIM卡", discountCode: "85GO", link: "reurl.cc/OrE7j7" }
+      ],
+      "美國": [
+        { type: "分享器", originalPrice: 250, discountCode: "US70", link: "bit.ly/USAshare", suggestion: "1-3台連線使用(最多5台)" }
+      ],
+      "泰國": [
+        { type: "分享器", originalPrice: 190, discountCode: "TAG60", link: "reurl.cc/OMr25D", suggestion: "1-3台連線使用(最多5台)" },
+        { type: "eSIM/實體SIM卡", discountCode: "85GO", link: "reurl.cc/NQkqEk" }
+      ],
+      "中國": [
+        { type: "分享器", originalPrice: 250, discountCode: "85GO", link: "goo.gl/U6JVyj", suggestion: "1-3台連線使用(最多5台)" },
+        { type: "eSIM/實體SIM卡", discountCode: "85GO", link: "reurl.cc/zqbRWa" },
+        { type: "亞洲8國上網 - eSIM/實體SIM卡", discountCode: "85GO", link: "reurl.cc/rEaGZr" }
+      ],
+      "越南": [
+        { type: "分享器", originalPrice: 190, discountCode: "TAG60", link: "reurl.cc/jWoDzp", suggestion: "1-3台連線使用(最多5台)" },
+        { type: "eSIM/實體SIM卡", discountCode: "85GO", link: "reurl.cc/OMnvOy" }
+      ],
+      "台灣": [
+        { type: "分享器", originalPrice: 190, discountCode: "1FCB26E2FA", link: "bit.ly/2Nb1SEJ", suggestion: "1-3台連線使用(最多5台)" }
+      ]
+    };
+
+    // 初始化國家下拉選單
+    const modifyCountrySelect = document.getElementById('modifyCountryInput');
+    function updateModifyCountryOptions() {
+      modifyCountrySelect.innerHTML = '';
+      Object.keys(plansData).forEach(c => {
+        const option = document.createElement('option');
+        option.value = c;
+        option.text = c;
+        modifyCountrySelect.add(option);
+      });
+    }
+    updateModifyCountryOptions();
+
+    // 生成方案
+    function generatePlans() {
+      let country = document.getElementById('countryInput').value.trim();
+      if(!plansData[country]) { 
+        document.getElementById('plansOutput').innerText = '找不到該國方案'; 
+        return; 
+      }
+      const discountPercent = document.getElementById('discountInput').value;
+      const customCode = document.getElementById('customCodeInput').value.trim() || '85GO';
+      const customPrice = document.getElementById('customPriceInput').value;
+      let outputText = '';
+
+      plansData[country].forEach(plan => {
+        if(plan.type === '分享器') {
+          let priceToUse = plan.originalPrice;
+          if(!fixedPlans.includes(country)) {
+            if(customPrice) priceToUse = Number(customPrice);
+          }
+          const discounted = Math.round(priceToUse * (discountPercent/100));
+          const codeToUse = (fixedPlans.includes(country) ? plan.discountCode : customCode || plan.discountCode);
+          outputText += `【${country}上網 - ${plan.type}】\n`;
+          outputText += `▪原價${priceToUse}元/天\n▪優惠${discounted}元/天\n`;
+          if(plan.suggestion) outputText += `▪${plan.suggestion}\n`;
+          outputText += `--------------------\n👉優惠代碼： ${codeToUse}\n👉方案介紹： ${plan.link}\n\n`;
+        } else if(plan.type.includes('eSIM')) {
+          outputText += `【${country}上網 - ${plan.type}】\n`;
+          outputText += `👉優惠代碼： ${plan.discountCode}\n👉方案介紹： ${plan.link}\n\n`;
+        }
+      });
+      document.getElementById('plansOutput').innerText = outputText;
+    }
+
+    function copyPlans() {
+      const plansText = document.getElementById('plansOutput').innerText;
+      navigator.clipboard.writeText(plansText);
+      alert('方案已複製到剪貼簿！');
+    }
+
+    // 選國家自動生成方案
+    document.getElementById('countryInput').addEventListener('change', generatePlans);
+    document.getElementById('copyBtn').addEventListener('click', copyPlans);
+
+    // 選擇國家顯示方案資料
+    modifyCountrySelect.addEventListener('change', function() {
+      const country = this.value;
+      const sharePlan = plansData[country]?.find(p => p.type === '分享器');
+      const esimPlan = plansData[country]?.find(p => p.type.includes('eSIM'));
+
+      document.getElementById('modifySharePriceInput').value = sharePlan?.originalPrice || '';
+      document.getElementById('modifyShareLinkInput').value = sharePlan?.link || '';
+
+      if(esimPlan?.link) {
+        document.getElementById('esimDiv').classList.remove('hidden');
+        document.getElementById('modifyEsimLinkInput').value = esimPlan.link;
+        document.getElementById('hasPhysicalSIMInput').value = 'yes';
+      } else {
+        document.getElementById('esimDiv').classList.add('hidden');
+        document.getElementById('modifyEsimLinkInput').value = '';
+        document.getElementById('hasPhysicalSIMInput').value = 'no';
+      }
+
+      generatePlans();
+    });
+
+    // 儲存修改
+    document.getElementById('saveModifyBtn').addEventListener('click', function() {
+      const country = modifyCountrySelect.value;
+      const sharePlan = plansData[country]?.find(p => p.type === '分享器');
+      const esimPlan = plansData[country]?.find(p => p.type.includes('eSIM'));
+
+      const newSharePrice = Number(document.getElementById('modifySharePriceInput').value);
+      const newShareLink = document.getElementById('modifyShareLinkInput').value.trim();
+      const newEsimLink = document.getElementById('modifyEsimLinkInput').value.trim();
+      const hasPhysicalSIM = document.getElementById('hasPhysicalSIMInput').value === 'yes';
+      const outputDiv = document.getElementById('modifyResultOutput');
+
+      if(sharePlan && !fixedPlans.includes(country)) sharePlan.originalPrice = newSharePrice;
+      if(sharePlan) sharePlan.link = newShareLink;
+
+      if(newEsimLink) {
+        if(esimPlan) {
+          esimPlan.link = newEsimLink;
+        } else {
+          plansData[country].push({ type: 'eSIM/實體SIM卡', discountCode: '85GO', link: newEsimLink });
+        }
+      }
+
+      outputDiv.innerText = '修改完成！';
+      generatePlans();
+    });
+
+    // 新增國家方案
+    document.getElementById('addNewCountryBtn').addEventListener('click', function() {
+      const country = document.getElementById('newCountryInput').value.trim();
+      const sharePrice = Number(document.getElementById('newSharePriceInput').value);
+      const shareLink = document.getElementById('newShareLinkInput').value.trim();
+      const esimLink = document.getElementById('newEsimLinkInput').value.trim();
+
+      if(!country || !sharePrice || !shareLink) { alert('請至少填寫國家名稱、分享器原價及連結'); return; }
+
+      plansData[country] = [{ type: '分享器', originalPrice: sharePrice, discountCode: '85GO', link: shareLink }];
+      if(esimLink) plansData[country].push({ type: 'eSIM/實體SIM卡', discountCode: '85GO', link: esimLink });
+
+      // 更新下拉選單
+      updateModifyCountryOptions();
+
+      alert('新增國家方案完成');
+    });
+
+    // 初次觸發顯示方案
+    modifyCountrySelect.dispatchEvent(new Event('change'));
+  </script>
+</body>
+</html>
